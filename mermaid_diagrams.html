@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yajaman Platform - Unified Architecture & Mermaid Diagrams</title>
+    <!-- Mermaid.js UMD Bundle from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-saffron: #D97706;
+            --primary-dark: #78350F;
+            --haldi-yellow: #F59E0B;
+            --bg-dark: #0F172A;
+            --card-bg: #1E293B;
+            --text-light: #F8FAFC;
+            --text-muted: #94A3B8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        header {
+            max-width: 1200px;
+            margin: 0 auto 32px auto;
+            text-align: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            color: var(--haldi-yellow);
+            margin-bottom: 8px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--primary-saffron);
+            color: var(--haldi-yellow);
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-saffron);
+            color: #FFFFFF;
+            border-color: var(--haldi-yellow);
+            box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.4rem;
+            color: var(--haldi-yellow);
+            margin-bottom: 8px;
+        }
+
+        .card p.desc {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .mermaid-container {
+            background-color: #0B1120;
+            border: 1px solid #1E293B;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            text-align: center;
+        }
+
+        .diagram-section {
+            position: absolute;
+            left: -99999px;
+            top: -99999px;
+            opacity: 0;
+            pointer-events: none;
+            height: 0;
+            overflow: hidden;
+        }
+
+        .diagram-section.active {
+            position: static;
+            opacity: 1;
+            pointer-events: auto;
+            height: auto;
+            overflow: visible;
+        }
+
+        footer {
+            max-width: 1200px;
+            margin: 40px auto 0 auto;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🕉️ Yajaman Platform Architecture</h1>
+        <p class="subtitle">Unified System UML, Booking Flow, Assignment Engine & Database ERD</p>
+    </header>
+
+    <div class="container">
+        <!-- Tab Navigation -->
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('tab-uml')">1. Unified UML Class Architecture</button>
+            <button class="tab-btn" onclick="switchTab('tab-flow')">2. End-to-End Sequence Journey</button>
+            <button class="tab-btn" onclick="switchTab('tab-engine')">3. Assignment Engine Flowchart</button>
+            <button class="tab-btn" onclick="switchTab('tab-erd')">4. Database ER Diagram</button>
+        </div>
+
+        <!-- Section 1: Unified UML Class Diagram -->
+        <div id="tab-uml" class="diagram-section active">
+            <div class="card">
+                <h2>Unified UML Class Diagram</h2>
+                <p class="desc">Shows all backend models, services, dispatch engines, and their structural relationships.</p>
+                <div class="mermaid-container">
+                    <pre class="mermaid">
+classDiagram
+    direction TB
+
+    %% Service Modules & Assignment Engine
+    class AssignmentEngine {
+        +find_eligible_vendors(booking) List~VendorCandidate~
+        +dispatch_booking_to_vendors(booking) int
+        +accept_booking(booking_id, vendor) Booking
+        +reject_booking(booking_id, vendor) void
+    }
+
+    class FCMService {
+        +send_vendor_dispatch_notification(device, booking, distance)
+        +send_customer_assignment_notification(device, booking, vendor)
+        +send_fcm_message(token, title, body, data)
+    }
+
+    class HaversineUtils {
+        +calculate_haversine_distance(lat1, lon1, lat2, lon2) float
+    }
+
+    %% Core Models
+    class User {
+        +UUID id
+        +string phone_number
+        +string full_name
+        +string email
+        +string origin_state
+        +string origin_city
+        +string gotra
+        +string mother_tongue
+        +bool is_active
+        +datetime phone_verified_at
+    }
+
+    class UserAddress {
+        +UUID id
+        +string address_type
+        +string flat_house_building
+        +string street_area_locality
+        +string city
+        +string state
+        +decimal latitude
+        +decimal longitude
+        +bool is_default
+    }
+
+    class UserDevice {
+        +UUID id
+        +string fcm_token
+        +string device_type
+    }
+
+    class Category {
+        +UUID id
+        +UUID parent_id
+        +string name
+        +string slug
+        +string icon_url
+        +int display_order
+        +bool is_active
+    }
+
+    class Service {
+        +UUID id
+        +UUID category_id
+        +string name
+        +string slug
+        +decimal price_without_samagri
+        +decimal price_with_samagri
+        +int duration_minutes_min
+        +int duration_minutes_max
+        +int vendors_required
+        +decimal rating_average
+        +json meta
+        +bool is_popular
+    }
+
+    class PoojaSamagriItem {
+        +UUID id
+        +string item_name
+        +string quantity
+        +bool is_included_by_default
+    }
+
+    class Vendor {
+        +UUID id
+        +string name
+        +string phone_number
+        +string origin_state
+        +string origin_city
+        +string qualification
+        +int experience_years
+        +decimal current_latitude
+        +decimal current_longitude
+        +decimal service_radius_km
+        +bool is_active
+        +bool is_available
+    }
+
+    class VendorDevice {
+        +UUID id
+        +string fcm_token
+        +string device_type
+    }
+
+    class Booking {
+        +UUID id
+        +string pricing_variant
+        +decimal total_price
+        +date preferred_date
+        +string preferred_time_slot
+        +json snapshot_booking_address
+        +json snapshot_user_spiritual_origin
+        +string status
+        +datetime created_at
+    }
+
+    class BookingDispatchLog {
+        +UUID id
+        +string fcm_message_id
+        +string response_status
+        +datetime created_at
+    }
+
+    class Payment {
+        +UUID id
+        +decimal amount
+        +string payment_mode
+        +string status
+        +string transaction_id
+    }
+
+    class Arti {
+        +UUID id
+        +string title
+        +string slug
+        +string deity
+        +string lyrics_text
+        +string audio_url
+        +int duration_seconds
+    }
+
+    class Horoscope {
+        +UUID id
+        +string zodiac_sign
+        +string period_type
+        +date period_date
+        +string prediction_text
+        +string lucky_color
+        +int lucky_number
+    }
+
+    %% Relationships
+    User "1" *-- "many" UserAddress : has
+    User "1" *-- "many" UserDevice : registers
+    User "1" *-- "many" Booking : places
+
+    Category "1" *-- "many" Category : subcategories
+    Category "1" *-- "many" Service : categorizes
+    Service "1" *-- "many" PoojaSamagriItem : includes
+
+    Vendor "1" *-- "many" VendorDevice : registers
+    Vendor "many" o-- "many" Category : skills / categories
+    Vendor "1" -- "many" Booking : assigned_to
+
+    Booking "1" *-- "many" BookingDispatchLog : dispatches
+    Vendor "1" *-- "many" BookingDispatchLog : receives
+    Booking "1" *-- "many" Payment : records
+
+    AssignmentEngine ..> Booking : locks & assigns
+    AssignmentEngine ..> HaversineUtils : uses
+    AssignmentEngine ..> FCMService : calls
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: End-to-End Sequence Journey -->
+        <div id="tab-flow" class="diagram-section">
+            <div class="card">
+                <h2>End-to-End User & Pandit Sequence Flow</h2>
+                <p class="desc">Walks through the client-server interaction from login and address selection to booking, FCM push alerts, and first-accept locking.</p>
+                <div class="mermaid-container">
+                    <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Customer as Customer (App)
+    participant API as Django REST API
+    participant DB as Database (Postgres)
+    participant FCM as Firebase Cloud Messaging
+    actor Pandit1 as Pandit 1 (Accepted)
+    actor Pandit2 as Pandit 2 (Rejected/Late)
+
+    Customer->>API: 1. POST /api/v1/auth/request-otp/ {phone}
+    API-->>Customer: OTP sent (Dev fallback: 123456)
+    Customer->>API: 2. POST /api/v1/auth/verify-otp/ {phone, otp}
+    API-->>Customer: JWT Access Token + Profile
+    Customer->>API: 3. POST /api/v1/users/addresses/ (Coordinates + set default)
+    API-->>Customer: Address saved & active
+
+    Customer->>API: 4. GET /api/v1/home/
+    API-->>Customer: Home feed (Categories, Popular Poojas, Artis, Horoscopes)
+    Customer->>API: 5. GET /api/v1/catalog/services/{slug}/
+    API-->>Customer: Single pooja details, Samagri list, Scripture source
+
+    Customer->>API: 6. POST /api/v1/bookings/ (WITH_SAMAGRI, PAY_NOW)
+    API->>DB: Save Booking (SEARCHING_VENDOR) + Snapshots + Payment
+    API->>API: Calculate eligible vendors (Radius + Origin Priority)
+    API->>FCM: Dispatch push notification (NEW_BOOKING_REQUEST)
+    FCM--)Pandit1: High-priority push alert
+    FCM--)Pandit2: High-priority push alert
+
+    Pandit1->>API: 7. POST /api/v1/bookings/{id}/accept/
+    API->>DB: Atomic SELECT FOR UPDATE on Booking
+    API->>DB: Set vendor = Pandit1, status = ACCEPTED
+    API-->>Pandit1: 200 OK (Booking assigned to you)
+    API->>FCM: Push notification to Customer (Vendor Assigned)
+    FCM--)Customer: "Pandit has been assigned to your booking"
+
+    Pandit2->>API: 8. POST /api/v1/bookings/{id}/accept/
+    API->>DB: Check Booking Status
+    API-->>Pandit2: 409 Conflict (Already accepted by another vendor)
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Assignment Engine Flowchart -->
+        <div id="tab-engine" class="diagram-section">
+            <div class="card">
+                <h2>Assignment Engine Decision Logic</h2>
+                <p class="desc">Visualizes how the system filters candidates by distance, ranks by origin match, and handles first-accept concurrency.</p>
+                <div class="mermaid-container">
+                    <pre class="mermaid">
+flowchart TD
+    Start(["New Booking Created"]) --> Snapshot["Create Address and Spiritual Origin Snapshot"]
+    Snapshot --> Query["Query Vendors with Category Skill Match"]
+    
+    Query --> ActiveCheck{"Is Active and Available?"}
+    ActiveCheck -->|No| Skip["Skip Vendor"]
+    ActiveCheck -->|Yes| DistCalc["Compute Haversine Distance: Vendor GPS to Booking GPS"]
+    
+    DistCalc --> RadiusCheck{"Within Vendor service radius?"}
+    RadiusCheck -->|No| Skip
+    RadiusCheck -->|Yes| PriorityScore["Calculate Priority Score:<br>- Origin State Match: +50<br>- Origin City Match: +50"]
+    
+    PriorityScore --> Sort["Sort Candidates by:<br>1. Priority Score Desc<br>2. Distance Asc<br>3. Rating Average Desc"]
+    
+    Sort --> PushFCM["Send High-Priority FCM Push to Vendor Devices"]
+    PushFCM --> LogDispatch["Record in booking_dispatch_logs (DISPATCHED)"]
+    
+    LogDispatch --> WaitVendor["Vendor App Displays Alert Prompt"]
+    
+    WaitVendor --> VendorAction{"Vendor Action?"}
+    VendorAction -->|No or Reject| MarkReject["Update Log: REJECTED"]
+    
+    VendorAction -->|Yes or Accept| AtomicLock["Begin DB Transaction:<br>SELECT FOR UPDATE on Booking"]
+    
+    AtomicLock --> CheckStatus{"Is Vendor Assigned or Status is ACCEPTED?"}
+    CheckStatus -->|Yes| Conflict["Return 409 Conflict:<br>Already accepted by another vendor"]
+    CheckStatus -->|No| Assign["Assign Vendor and Set Status to ACCEPTED"]
+    
+    Assign --> ExpireOthers["Update Other Dispatches to EXPIRED"]
+    ExpireOthers --> NotifyCustomer["Send FCM Push to Customer Device:<br>Pandit Assigned"]
+    NotifyCustomer --> Finish(["Booking Confirmed"])
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Database ERD -->
+        <div id="tab-erd" class="diagram-section">
+            <div class="card">
+                <h2>Database Entity-Relationship Diagram</h2>
+                <p class="desc">Detailed entity attributes, keys, and foreign-key constraints matching the database schema.</p>
+                <div class="mermaid-container">
+                    <pre class="mermaid">
+erDiagram
+    CATEGORIES ||--o{ CATEGORIES : "parent_id"
+    CATEGORIES ||--o{ SERVICES : "category_id"
+    SERVICES ||--o{ POOJA_SAMAGRI_ITEMS : "service_id"
+    USERS ||--o{ USER_ADDRESSES : "user_id"
+    USERS ||--o{ USER_DEVICES : "user_id"
+    USERS ||--o{ BOOKINGS : "user_id"
+    VENDORS ||--o{ VENDOR_DEVICES : "vendor_id"
+    VENDORS ||--o{ BOOKINGS : "vendor_id"
+    BOOKINGS ||--o{ BOOKING_DISPATCH_LOGS : "booking_id"
+    VENDORS ||--o{ BOOKING_DISPATCH_LOGS : "vendor_id"
+    BOOKINGS ||--o{ PAYMENTS : "booking_id"
+    USER_ADDRESSES ||--o{ BOOKINGS : "address_id"
+    SERVICES ||--o{ BOOKINGS : "service_id"
+
+    CATEGORIES {
+        uuid id PK
+        uuid parent_id FK
+        varchar name
+        varchar slug
+        varchar icon_url
+        int display_order
+        bool is_active
+    }
+
+    SERVICES {
+        uuid id PK
+        uuid category_id FK
+        varchar name
+        varchar slug
+        decimal price_without_samagri
+        decimal price_with_samagri
+        jsonb meta
+        int vendors_required
+        numeric rating_average
+        bool is_popular
+    }
+
+    POOJA_SAMAGRI_ITEMS {
+        uuid id PK
+        uuid service_id FK
+        varchar item_name
+        varchar quantity
+        bool is_included_by_default
+    }
+
+    USERS {
+        uuid id PK
+        varchar phone_number
+        varchar full_name
+        varchar origin_state
+        varchar origin_city
+        varchar gotra
+        varchar mother_tongue
+    }
+
+    USER_ADDRESSES {
+        uuid id PK
+        uuid user_id FK
+        varchar address_type
+        varchar flat_house_building
+        varchar city
+        varchar state
+        numeric latitude
+        numeric longitude
+        bool is_default
+    }
+
+    VENDORS {
+        uuid id PK
+        varchar name
+        varchar phone_number
+        varchar origin_state
+        varchar origin_city
+        text qualification
+        int experience_years
+        numeric current_latitude
+        numeric current_longitude
+        numeric service_radius_km
+    }
+
+    BOOKINGS {
+        uuid id PK
+        uuid user_id FK
+        uuid service_id FK
+        uuid vendor_id FK
+        uuid address_id FK
+        varchar pricing_variant
+        decimal total_price
+        date preferred_date
+        varchar preferred_time_slot
+        jsonb snapshot_booking_address
+        varchar status
+    }
+
+    PAYMENTS {
+        uuid id PK
+        uuid booking_id FK
+        decimal amount
+        varchar payment_mode
+        varchar status
+    }
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Yajaman Vendor Booking Platform &bull; Built with Django REST Framework &amp; Firebase Cloud Messaging
+    </footer>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#D97706',
+                primaryTextColor: '#FFFFFF',
+                primaryBorderColor: '#F59E0B',
+                lineColor: '#F59E0B',
+                secondaryColor: '#1E293B',
+                tertiaryColor: '#0F172A',
+                mainBkg: '#1E293B',
+                nodeBorder: '#D97706',
+                clusterBkg: '#1E293B',
+                titleColor: '#F59E0B'
+            }
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.diagram-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            const targetSection = document.getElementById(tabId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
