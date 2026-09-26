@@ -23,9 +23,12 @@ from apps.vendors.models import Vendor
 
 
 class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.none()
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:
+            return Booking.objects.none()
         return Booking.objects.filter(user=self.request.user).select_related('service', 'vendor', 'address')
 
     def get_serializer_class(self):

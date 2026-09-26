@@ -1,8 +1,12 @@
 import os
+import warnings
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
+
+# Suppress harmless urllib3 NotOpenSSLWarning on macOS LibreSSL
+warnings.filterwarnings('ignore', message='.*urllib3 v2 only supports OpenSSL.*')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -164,6 +168,11 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
+    'ENUM_NAME_OVERRIDES': {
+        'BookingStatusEnum': 'apps.bookings.models.Booking.BookingStatus',
+        'PaymentStatusEnum': 'apps.bookings.models.Payment.PaymentStatus',
+        'VendorApplicationStatusEnum': 'apps.vendors.models.VendorOnboardingApplication.Status',
+    },
 }
 
 # Firebase Cloud Messaging & SMS Gateway Settings

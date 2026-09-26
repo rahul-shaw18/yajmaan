@@ -181,10 +181,13 @@ class UserProfileView(APIView):
 
 
 class UserAddressViewSet(viewsets.ModelViewSet):
+    queryset = UserAddress.objects.none()
     serializer_class = UserAddressSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:
+            return UserAddress.objects.none()
         return UserAddress.objects.filter(user=self.request.user)
 
     @action(detail=True, methods=['post'], url_path='set-default')
