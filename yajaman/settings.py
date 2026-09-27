@@ -183,3 +183,14 @@ FAST2SMS_API_KEY = os.getenv('FAST2SMS_API_KEY', None)
 
 # Development Mock OTP (Optional: if set e.g. '123456', fixes OTP; if unset, generates real 6-digit random OTP)
 DEV_MOCK_OTP = os.getenv('DEV_MOCK_OTP', None)
+
+# Google Gemini API Key for dynamic AI horoscope generation
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', None)
+
+# Caching Configuration (Fast in-memory cache layer)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'yajaman-cache',
+    }
+}
