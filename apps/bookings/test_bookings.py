@@ -61,7 +61,7 @@ class BookingsAndDispatchEngineTest(TestCase):
         )
 
         # 3. Vendors
-        # Vendor 1: Close (Noida, ~5 km), matching origin (UP, Varanasi) -> Highest priority
+        # Vendor 1: Close (Noida, ~2.2 km), matching origin (UP, Varanasi) -> On duty, initial 5km match
         self.vendor_up = Vendor.objects.create(
             name="Pandit Varanasi Vale",
             phone_number="+919811111111",
@@ -73,29 +73,31 @@ class BookingsAndDispatchEngineTest(TestCase):
             service_radius_km=15.0,
             is_active=True,
             is_available=True,
+            is_on_duty=True,
             rating_average=4.9
         )
         self.vendor_up.categories.add(self.category)
         VendorDevice.objects.create(vendor=self.vendor_up, fcm_token="vendor_1_fcm_token")
 
-        # Vendor 2: In radius (Delhi, ~12 km), different origin (Bihar) -> Lower priority
-        self.vendor_other = Vendor.objects.create(
-            name="Pandit Mithila Vale",
+        # Vendor 2: In expansion radius (~6.5 km away), on duty
+        self.vendor_mid = Vendor.objects.create(
+            name="Pandit Greater Noida Vale",
             phone_number="+919822222222",
             origin_state="Bihar",
             origin_city="Darbhanga",
             qualification="Shastri",
-            current_latitude=28.6139,
-            current_longitude=77.2090,
+            current_latitude=28.6500,
+            current_longitude=77.4100,
             service_radius_km=20.0,
             is_active=True,
             is_available=True,
+            is_on_duty=True,
             rating_average=4.8
         )
-        self.vendor_other.categories.add(self.category)
-        VendorDevice.objects.create(vendor=self.vendor_other, fcm_token="vendor_2_fcm_token")
+        self.vendor_mid.categories.add(self.category)
+        VendorDevice.objects.create(vendor=self.vendor_mid, fcm_token="vendor_2_fcm_token")
 
-        # Vendor 3: Too far away (Gurugram: ~40 km away, radius only 15 km) -> Ineligible
+        # Vendor 3: Too far away (Gurugram: ~40 km away) -> Ineligible
         self.vendor_far = Vendor.objects.create(
             name="Pandit Far Away",
             phone_number="+919833333333",
@@ -105,9 +107,11 @@ class BookingsAndDispatchEngineTest(TestCase):
             current_longitude=77.0266,
             service_radius_km=15.0,
             is_active=True,
-            is_available=True
+            is_available=True,
+            is_on_duty=True
         )
         self.vendor_far.categories.add(self.category)
+
 
     def test_booking_creation_and_dispatch_engine(self):
         tomorrow = datetime.date.today() + datetime.timedelta(days=1)
@@ -133,16 +137,63 @@ class BookingsAndDispatchEngineTest(TestCase):
         self.assertEqual(booking.payments.first().payment_mode, Payment.PaymentMode.PAY_NOW)
         self.assertEqual(booking.payments.first().status, Payment.PaymentStatus.COMPLETED)
 
-        # Verify dispatch logs: Only in-radius vendors should receive dispatch
+        # Verify dispatch logs: Only initial 5km on-duty vendor matched first
         dispatched_vendor_ids = list(booking.dispatch_logs.values_list('vendor_id', flat=True))
         self.assertIn(self.vendor_up.id, dispatched_vendor_ids)
-        self.assertIn(self.vendor_other.id, dispatched_vendor_ids)
         self.assertNotIn(self.vendor_far.id, dispatched_vendor_ids)  # Far vendor excluded
 
-        # Test find_eligible_vendors priority ranking
+        # Test find_eligible_vendors priority ranking (5km radius match)
         ranked = find_eligible_vendors(booking)
-        self.assertEqual(ranked[0]['vendor'].id, self.vendor_up.id)  # UP/Varanasi vendor ranked #1
-        self.assertGreater(ranked[0]['priority_score'], ranked[1]['priority_score'])
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(ranked[0]['vendor'].id, self.vendor_up.id)
+
+    def test_off_duty_vendor_exclusion_and_radius_expansion(self):
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        booking = Booking.objects.create(
+            user=self.customer,
+            service=self.service,
+            address=self.address,
+            pricing_variant=Booking.PricingVariant.WITH_SAMAGRI,
+            total_price=2500.00,
+            preferred_date=tomorrow,
+            preferred_time_slot='10:00 AM',
+            snapshot_booking_address={"city": "Noida"},
+            status=Booking.BookingStatus.SEARCHING_VENDOR
+        )
+
+        # 1. Turn close vendor off duty
+        self.vendor_up.is_on_duty = False
+        self.vendor_up.save()
+
+        # 2. When searching eligible vendors, initial 5km has 0 vendors, so expansion loop expands to 7km and finds vendor_mid (~6.5 km away)
+        ranked = find_eligible_vendors(booking)
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(ranked[0]['vendor'].id, self.vendor_mid.id)
+
+    def test_no_vendor_available_when_all_off_duty_or_out_of_radius(self):
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        booking = Booking.objects.create(
+            user=self.customer,
+            service=self.service,
+            address=self.address,
+            pricing_variant=Booking.PricingVariant.WITH_SAMAGRI,
+            total_price=2500.00,
+            preferred_date=tomorrow,
+            preferred_time_slot='10:00 AM',
+            snapshot_booking_address={"city": "Noida"},
+            status=Booking.BookingStatus.SEARCHING_VENDOR
+        )
+
+        # Turn all vendors off duty
+        Vendor.objects.all().update(is_on_duty=False)
+
+        ranked = find_eligible_vendors(booking)
+        self.assertEqual(len(ranked), 0)
+
+        # Simulate dispatch API response
+        res = self.client.post(f'/api/v1/bookings/{booking.id}/simulate-dispatch/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("No vendor available right now", res.data['message'])
 
     def test_first_accept_concurrency_and_race_condition(self):
         tomorrow = datetime.date.today() + datetime.timedelta(days=1)
@@ -159,7 +210,7 @@ class BookingsAndDispatchEngineTest(TestCase):
         )
 
         BookingDispatchLog.objects.create(booking=booking, vendor=self.vendor_up, response_status='DISPATCHED')
-        BookingDispatchLog.objects.create(booking=booking, vendor=self.vendor_other, response_status='DISPATCHED')
+        BookingDispatchLog.objects.create(booking=booking, vendor=self.vendor_mid, response_status='DISPATCHED')
 
         # 1. Vendor 1 accepts
         res1 = self.client.post(f'/api/v1/bookings/{booking.id}/accept/', {
@@ -175,11 +226,12 @@ class BookingsAndDispatchEngineTest(TestCase):
 
         # Verify dispatch log for vendor 1 is ACCEPTED, other is EXPIRED
         self.assertEqual(BookingDispatchLog.objects.get(booking=booking, vendor=self.vendor_up).response_status, 'ACCEPTED')
-        self.assertEqual(BookingDispatchLog.objects.get(booking=booking, vendor=self.vendor_other).response_status, 'EXPIRED')
+        self.assertEqual(BookingDispatchLog.objects.get(booking=booking, vendor=self.vendor_mid).response_status, 'EXPIRED')
 
         # 2. Vendor 2 attempts to accept the SAME booking -> Must get 409 Conflict
         res2 = self.client.post(f'/api/v1/bookings/{booking.id}/accept/', {
-            'vendor_id': str(self.vendor_other.id)
+            'vendor_id': str(self.vendor_mid.id)
         })
         self.assertEqual(res2.status_code, status.HTTP_409_CONFLICT)
         self.assertIn("already been accepted", res2.data['detail'])
+

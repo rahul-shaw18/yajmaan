@@ -5,7 +5,8 @@ from .views import (
     VendorDetailView,
     VendorDeviceView,
     VendorLocationView,
-    VendorAvailableJobsView
+    VendorAvailableJobsView,
+    VendorDutyView
 )
 
 urlpatterns = [
@@ -14,5 +15,7 @@ urlpatterns = [
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
     path('device-token/', VendorDeviceView.as_view(), name='vendor-device-token'),
     path('location/', VendorLocationView.as_view(), name='vendor-location-update'),
+    path('duty/', VendorDutyView.as_view(), name='vendor-duty-toggle'),
     path('available-jobs/', VendorAvailableJobsView.as_view(), name='vendor-available-jobs'),
 ]
+

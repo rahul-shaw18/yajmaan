@@ -63,11 +63,13 @@ class BookingViewSet(viewsets.ModelViewSet):
     def simulate_dispatch(self, request, pk=None):
         booking = self.get_object()
         count = dispatch_booking_to_vendors(booking)
+        msg = f"Dispatched booking {booking.id} to {count} eligible vendors." if count > 0 else "No vendor available right now, try after sometime."
         return Response({
-            "message": f"Dispatched booking {booking.id} to {count} eligible vendors.",
+            "message": msg,
             "booking_status": booking.status,
             "dispatched_vendors_count": count
         })
+
 
 
 class VendorAcceptBookingView(APIView):

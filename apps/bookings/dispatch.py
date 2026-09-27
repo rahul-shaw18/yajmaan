@@ -25,12 +25,13 @@ class BookingInvalidStateError(BookingDispatchError):
     pass
 
 
-def find_eligible_vendors(booking: Booking):
+def find_eligible_vendors(booking: Booking, initial_radius: float = 5.0, step_km: float = 2.0, max_radius: float = 10.0):
     """
     Finds and ranks all eligible vendors for a booking:
     1. Category / skill matching (Generic: Barber vs Massage vs Pandit)
-    2. Active and available status
-    3. Within custom service radius (Haversine distance)
+    2. Active, available, AND on-duty status (is_on_duty=True)
+    3. Dynamic step-wise radius expansion starting at initial_radius (5 km),
+       expanding by step_km (2 km) up to max_radius (10 km).
     4. Prioritized by origin state/city match, distance, and rating
     """
     category = booking.service.category
@@ -38,10 +39,11 @@ def find_eligible_vendors(booking: Booking):
     if category.parent_id:
         cat_ids.append(category.parent_id)
 
-    # Filter vendors matching category (or vendors without restrictive category tags)
+    # Filter vendors matching category, active, available, AND on duty
     candidates = Vendor.objects.filter(
         is_active=True,
-        is_available=True
+        is_available=True,
+        is_on_duty=True
     ).filter(
         Q(categories__isnull=True) | Q(categories__id__in=cat_ids)
     ).distinct()
@@ -55,8 +57,7 @@ def find_eligible_vendors(booking: Booking):
     user_state = (origin_info.get('origin_state') or '').strip().lower()
     user_city = (origin_info.get('origin_city') or '').strip().lower()
 
-    ranked_vendors = []
-
+    candidate_distances = []
     for vendor in candidates:
         if vendor.current_latitude is None or vendor.current_longitude is None:
             # Skip vendors with no coordinates set
@@ -67,10 +68,28 @@ def find_eligible_vendors(booking: Booking):
             float(vendor.current_latitude), float(vendor.current_longitude)
         )
 
-        radius = float(vendor.service_radius_km or 15.0)
-        if distance > radius:
-            continue
+        vendor_radius = float(vendor.service_radius_km or 15.0)
+        if distance <= vendor_radius:
+            candidate_distances.append((vendor, distance))
 
+    # Step-wise radius expansion: 5km -> 7km -> 9km -> 10km max
+    current_radius = initial_radius
+    matched_candidates = []
+
+    while current_radius <= max_radius:
+        in_radius = [item for item in candidate_distances if item[1] <= current_radius]
+        if in_radius:
+            matched_candidates = in_radius
+            break
+        if current_radius >= max_radius:
+            break
+        current_radius = min(current_radius + step_km, max_radius)
+
+    if not matched_candidates:
+        return []
+
+    ranked_vendors = []
+    for vendor, distance in matched_candidates:
         # Priority calculation
         priority_score = 0
         vendor_state = (vendor.origin_state or '').strip().lower()
@@ -91,6 +110,7 @@ def find_eligible_vendors(booking: Booking):
     # Sort: highest priority score first, then shortest distance, then highest rating
     ranked_vendors.sort(key=lambda x: (-x['priority_score'], x['distance_km'], -x['rating']))
     return ranked_vendors
+
 
 
 def dispatch_booking_to_vendors(booking: Booking) -> int:
