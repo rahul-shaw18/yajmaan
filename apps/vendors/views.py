@@ -9,8 +9,10 @@ from .serializers import (
     VendorPublicProfileSerializer,
     VendorOnboardingApplicationSerializer,
     VendorDeviceSerializer,
-    VendorLocationUpdateSerializer
+    VendorLocationUpdateSerializer,
+    VendorDutyToggleSerializer
 )
+
 
 
 class VendorOnboardingView(generics.CreateAPIView):
@@ -107,3 +109,29 @@ class VendorAvailableJobsView(APIView):
         bookings = [log.booking for log in active_dispatches]
         serializer = BookingListSerializer(bookings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VendorDutyView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        request=VendorDutyToggleSerializer,
+        responses={200: VendorPublicProfileSerializer},
+        description="Toggle vendor onDuty status ON or OFF."
+    )
+    def patch(self, request):
+        serializer = VendorDutyToggleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        vendor_id = serializer.validated_data['vendor_id']
+        is_on_duty = serializer.validated_data['is_on_duty']
+
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        vendor.is_on_duty = is_on_duty
+        vendor.save(update_fields=['is_on_duty', 'updated_at'])
+
+        return Response(VendorPublicProfileSerializer(vendor).data, status=status.HTTP_200_OK)
+

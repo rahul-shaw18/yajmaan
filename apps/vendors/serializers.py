@@ -9,7 +9,8 @@ class VendorPublicProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'phone_number', 'origin_state', 'origin_city',
             'qualification', 'experience_years', 'rating_average',
-            'reviews_count', 'service_radius_km'
+            'reviews_count', 'service_radius_km', 'is_active', 'is_available',
+            'is_on_duty'
         ]
 
 
@@ -51,3 +52,9 @@ class VendorLocationUpdateSerializer(serializers.Serializer):
     vendor_id = serializers.UUIDField(required=True)
     latitude = serializers.DecimalField(max_digits=10, decimal_places=8, required=True)
     longitude = serializers.DecimalField(max_digits=11, decimal_places=8, required=True)
+
+
+class VendorDutyToggleSerializer(serializers.Serializer):
+    vendor_id = serializers.UUIDField(required=True)
+    is_on_duty = serializers.BooleanField(required=True)
+
