@@ -4,6 +4,7 @@ from .views import ArtiViewSet, HoroscopeListView, ZodiacSignHoroscopeView
 
 router = DefaultRouter()
 router.register('artis', ArtiViewSet, basename='artis')
+router.register('arti', ArtiViewSet, basename='arti')  # <-- Aliases /arti/ to ArtiViewSet
 
 urlpatterns = [
     path('horoscopes/', HoroscopeListView.as_view(), name='horoscope-list'),

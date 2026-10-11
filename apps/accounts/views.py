@@ -72,16 +72,16 @@ class RequestOTPView(APIView):
                 "phone_number": phone
             }, status=status.HTTP_502_BAD_GATEWAY)
 
+        # Log OTP directly to server terminal
+        print(f"\n==========================================")
+        print(f"🔑 [AUTH OTP] Phone: {phone} | OTP: {otp}")
+        print(f"==========================================\n")
+
         response_data = {
             "message": "OTP has been sent to your phone number.",
             "phone_number": phone,
             "expires_in_seconds": 600,
         }
-        if sms_result.get("simulated"):
-            response_data["note"] = "Simulated in development mode. Set FAST2SMS_API_KEY in .env to receive actual SMS on your phone."
-            response_data["dev_otp"] = otp
-        elif settings.DEBUG and dev_mock:
-            response_data["dev_otp"] = otp
 
         return Response(response_data, status=status.HTTP_200_OK)
 
