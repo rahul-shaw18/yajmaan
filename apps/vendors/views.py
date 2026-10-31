@@ -1,15 +1,17 @@
+from django.utils import timezone
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from .models import Vendor, VendorOnboardingApplication, VendorDevice
+from .models import Vendor, VendorOnboardingApplication, VendorDevice, VendorLocationHistory
 from .serializers import (
     VendorPublicProfileSerializer,
     VendorOnboardingApplicationSerializer,
     VendorDeviceSerializer,
     VendorLocationUpdateSerializer,
+    VendorLocationResponseSerializer,
     VendorDutyToggleSerializer
 )
 
@@ -54,10 +56,29 @@ class VendorLocationView(APIView):
 
     @extend_schema(
         request=VendorLocationUpdateSerializer,
-        responses={200: VendorPublicProfileSerializer},
-        description="Update vendor's live GPS coordinates for proximity dispatch."
+        responses={
+            200: VendorLocationResponseSerializer,
+            400: OpenApiResponse(description="Vendor is not on duty or invalid coordinates provided"),
+            404: OpenApiResponse(description="Vendor not found")
+        },
+        description="Update vendor's live GPS coordinates (e.g. every 30 minutes from vendor device). Only allowed when vendor is on duty."
+    )
+    def post(self, request):
+        return self._update_location(request)
+
+    @extend_schema(
+        request=VendorLocationUpdateSerializer,
+        responses={
+            200: VendorLocationResponseSerializer,
+            400: OpenApiResponse(description="Vendor is not on duty or invalid coordinates provided"),
+            404: OpenApiResponse(description="Vendor not found")
+        },
+        description="Update vendor's live GPS coordinates (e.g. every 30 minutes from vendor device). Only allowed when vendor is on duty."
     )
     def patch(self, request):
+        return self._update_location(request)
+
+    def _update_location(self, request):
         serializer = VendorLocationUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         vendor_id = serializer.validated_data['vendor_id']
@@ -67,13 +88,45 @@ class VendorLocationView(APIView):
         try:
             vendor = Vendor.objects.get(id=vendor_id)
         except Vendor.DoesNotExist:
-            return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "NOT_FOUND", "detail": "Vendor not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        # On-Duty Validation: Only allow location updates if vendor is currently on duty!
+        if not vendor.is_on_duty:
+            return Response(
+                {
+                    "error": "VENDOR_OFF_DUTY",
+                    "detail": "Vendor is currently off duty. Location updates can only be saved when vendor is on duty.",
+                    "is_on_duty": False,
+                    "vendor_id": str(vendor.id)
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        now = timezone.now()
         vendor.current_latitude = lat
         vendor.current_longitude = lon
-        vendor.save(update_fields=['current_latitude', 'current_longitude', 'updated_at'])
+        vendor.location_updated_at = now
+        vendor.save(update_fields=['current_latitude', 'current_longitude', 'location_updated_at', 'updated_at'])
 
-        return Response(VendorPublicProfileSerializer(vendor).data, status=status.HTTP_200_OK)
+        # Record 30-minute periodic heartbeat in location history table
+        VendorLocationHistory.objects.create(
+            vendor=vendor,
+            latitude=lat,
+            longitude=lon
+        )
+
+        return Response({
+            "status": "success",
+            "message": "Vendor location recorded successfully.",
+            "vendor_id": str(vendor.id),
+            "current_latitude": float(vendor.current_latitude),
+            "current_longitude": float(vendor.current_longitude),
+            "location_updated_at": vendor.location_updated_at.isoformat(),
+            "is_on_duty": vendor.is_on_duty
+        }, status=status.HTTP_200_OK)
 
 
 class VendorAvailableJobsView(APIView):
