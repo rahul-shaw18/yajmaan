@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Vendor, VendorOnboardingApplication, VendorDevice
+from .models import Vendor, VendorOnboardingApplication, VendorDevice, VendorLocationHistory
 from apps.catalog.serializers import SubcategorySerializer
 
 
@@ -10,7 +10,7 @@ class VendorPublicProfileSerializer(serializers.ModelSerializer):
             'id', 'name', 'phone_number', 'origin_state', 'origin_city',
             'qualification', 'experience_years', 'rating_average',
             'reviews_count', 'service_radius_km', 'is_active', 'is_available',
-            'is_on_duty'
+            'is_on_duty', 'current_latitude', 'current_longitude', 'location_updated_at'
         ]
 
 
@@ -50,8 +50,39 @@ class VendorDeviceSerializer(serializers.ModelSerializer):
 
 class VendorLocationUpdateSerializer(serializers.Serializer):
     vendor_id = serializers.UUIDField(required=True)
-    latitude = serializers.DecimalField(max_digits=10, decimal_places=8, required=True)
-    longitude = serializers.DecimalField(max_digits=11, decimal_places=8, required=True)
+    latitude = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=8,
+        required=True,
+        min_value=-90,
+        max_value=90,
+        help_text="Latitude (-90 to 90)"
+    )
+    longitude = serializers.DecimalField(
+        max_digits=11,
+        decimal_places=8,
+        required=True,
+        min_value=-180,
+        max_value=180,
+        help_text="Longitude (-180 to 180)"
+    )
+
+
+class VendorLocationResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    message = serializers.CharField()
+    vendor_id = serializers.UUIDField()
+    current_latitude = serializers.FloatField()
+    current_longitude = serializers.FloatField()
+    location_updated_at = serializers.DateTimeField()
+    is_on_duty = serializers.BooleanField()
+
+
+class VendorLocationHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorLocationHistory
+        fields = ['id', 'vendor_id', 'latitude', 'longitude', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class VendorDutyToggleSerializer(serializers.Serializer):

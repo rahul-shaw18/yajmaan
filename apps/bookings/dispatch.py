@@ -1,5 +1,5 @@
 import logging
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q
 from apps.core.utils import calculate_haversine_distance
 from apps.core.fcm import (
@@ -33,13 +33,77 @@ def find_eligible_vendors(booking: Booking, initial_radius: float = 5.0, step_km
     3. Dynamic step-wise radius expansion starting at initial_radius (5 km),
        expanding by step_km (2 km) up to max_radius (10 km).
     4. Prioritized by origin state/city match, distance, and rating
+
+    Uses high-performance PostGIS spatial queries on Supabase / PostgreSQL
+    with graceful fallback to Haversine calculation for non-PostGIS backends.
     """
     category = booking.service.category
     cat_ids = [category.id]
     if category.parent_id:
         cat_ids.append(category.parent_id)
 
-    # Filter vendors matching category, active, available, AND on duty
+    # Customer location from address snapshot or relation
+    cust_lat = None
+    cust_lon = None
+    if booking.address:
+        cust_lat = booking.address.latitude
+        cust_lon = booking.address.longitude
+    if (cust_lat is None or cust_lon is None) and booking.snapshot_booking_address:
+        cust_lat = booking.snapshot_booking_address.get('latitude')
+        cust_lon = booking.snapshot_booking_address.get('longitude')
+
+    if cust_lat is None or cust_lon is None:
+        logger.warning(f"Booking {booking.id} has no valid latitude/longitude coordinates.")
+        return []
+
+    # Customer spiritual origin
+    origin_info = booking.snapshot_user_spiritual_origin or {}
+    user_state = (origin_info.get('origin_state') or '').strip().lower()
+    user_city = (origin_info.get('origin_city') or '').strip().lower()
+
+    # Primary: Fast PostGIS spatial search query on Supabase / PostgreSQL
+    if connection.vendor == 'postgresql':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT vendor_id, name, phone_number, origin_state, origin_city,
+                           rating_average, distance_km, priority_score
+                    FROM find_eligible_vendors_postgis(
+                        %s, %s, %s::uuid[], %s, %s, %s, %s, %s
+                    );
+                """, [
+                    float(cust_lat),
+                    float(cust_lon),
+                    [str(c) for c in cat_ids] if cat_ids else None,
+                    user_state,
+                    user_city,
+                    float(initial_radius),
+                    float(step_km),
+                    float(max_radius)
+                ])
+                rows = cursor.fetchall()
+
+            if not rows:
+                return []
+
+            vendor_ids = [r[0] for r in rows]
+            vendors_map = {v.id: v for v in Vendor.objects.filter(id__in=vendor_ids)}
+
+            ranked_vendors = []
+            for r in rows:
+                vendor = vendors_map.get(r[0])
+                if vendor:
+                    ranked_vendors.append({
+                        'vendor': vendor,
+                        'distance_km': float(r[6]),
+                        'priority_score': int(r[7]),
+                        'rating': float(vendor.rating_average or 0.0),
+                    })
+            return ranked_vendors
+        except Exception as exc:
+            logger.error(f"PostGIS find_eligible_vendors_postgis error: {exc}. Falling back to Haversine.")
+
+    # Fallback: Python Haversine calculation (for SQLite / offline dev)
     candidates = Vendor.objects.filter(
         is_active=True,
         is_available=True,
@@ -47,15 +111,6 @@ def find_eligible_vendors(booking: Booking, initial_radius: float = 5.0, step_km
     ).filter(
         Q(categories__isnull=True) | Q(categories__id__in=cat_ids)
     ).distinct()
-
-    # Customer location from address snapshot or relation
-    cust_lat = booking.address.latitude
-    cust_lon = booking.address.longitude
-
-    # Customer spiritual origin
-    origin_info = booking.snapshot_user_spiritual_origin or {}
-    user_state = (origin_info.get('origin_state') or '').strip().lower()
-    user_city = (origin_info.get('origin_city') or '').strip().lower()
 
     candidate_distances = []
     for vendor in candidates:

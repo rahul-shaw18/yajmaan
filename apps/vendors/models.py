@@ -68,6 +68,7 @@ class Vendor(models.Model):
     # Coordinates & Service Radius for dispatch
     current_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
     current_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    location_updated_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of latest device GPS heartbeat")
     service_radius_km = models.DecimalField(max_digits=5, decimal_places=2, default=15.0)
     
     is_active = models.BooleanField(default=True)
@@ -83,6 +84,29 @@ class Vendor(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.origin_city or 'Unknown'}, {self.origin_state or ''}"
+
+
+class VendorLocationHistory(models.Model):
+    """
+    Logs 30-minute interval GPS location pings from on-duty vendor devices.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name='location_history',
+        db_column='vendor_id'
+    )
+    latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'vendor_location_history'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.vendor.name} @ ({self.latitude}, {self.longitude}) at {self.created_at}"
 
 
 class VendorDevice(models.Model):
