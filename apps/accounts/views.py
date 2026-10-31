@@ -74,7 +74,7 @@ class RequestOTPView(APIView):
 
         # Log OTP directly to server terminal
         print(f"\n==========================================")
-        print(f"🔑 [AUTH OTP] Phone: {phone} | OTP: {otp}")
+        print(f"[AUTH OTP] Phone: {phone} | OTP: {otp}")
         print(f"==========================================\n")
 
         response_data = {
