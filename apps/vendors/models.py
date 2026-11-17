@@ -4,36 +4,46 @@ from django.db import models
 
 class VendorOnboardingApplication(models.Model):
     class Status(models.TextChoices):
+        DRAFT = 'DRAFT', 'Draft'
         PENDING_APPROVAL = 'PENDING_APPROVAL', 'Pending Approval'
         APPROVED = 'APPROVED', 'Approved'
         REJECTED = 'REJECTED', 'Rejected'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    full_name = models.CharField(max_length=150)
+    full_name = models.CharField(max_length=150, blank=True, default="Pandit Ji")
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(max_length=255, null=True, blank=True)
     origin_state = models.CharField(max_length=100, null=True, blank=True)
     origin_city = models.CharField(max_length=100, null=True, blank=True)
     qualification = models.TextField(null=True, blank=True)
+    experience_years = models.PositiveSmallIntegerField(default=5)
+    specializations = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Address and Location
+    address = models.TextField(null=True, blank=True)
+    home_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
+    home_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
     
     # KYC & Verification
     id_proof_type = models.CharField(max_length=50, null=True, blank=True)
     id_proof_number = models.CharField(max_length=100, null=True, blank=True)
-    id_proof_document_url = models.URLField(max_length=1024, null=True, blank=True)
+    id_proof_document_url = models.TextField(null=True, blank=True)
     pan_card_number = models.CharField(max_length=30, null=True, blank=True)
-    pan_card_document_url = models.URLField(max_length=1024, null=True, blank=True)
+    pan_card_document_url = models.TextField(null=True, blank=True)
     bank_account_number = models.CharField(max_length=50, null=True, blank=True)
     bank_ifsc_code = models.CharField(max_length=20, null=True, blank=True)
     bank_beneficiary_name = models.CharField(max_length=150, null=True, blank=True)
     
-    status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING_APPROVAL)
+    step_completed = models.PositiveSmallIntegerField(default=1)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DRAFT)
     rejection_reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'vendor_onboarding_applications'
-        ordering = ['-created_at']
+        ordering = ['-updated_at', '-created_at']
 
     def __str__(self):
         return f"{self.full_name} ({self.status})"
@@ -55,19 +65,27 @@ class Vendor(models.Model):
         related_name='vendors',
         db_table='vendor_categories'
     )
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=150, blank=True, default="Pandit Ji")
     phone_number = models.CharField(max_length=20, unique=True)
     email = models.EmailField(max_length=255, unique=True, null=True, blank=True)
     origin_state = models.CharField(max_length=100, null=True, blank=True)
     origin_city = models.CharField(max_length=100, null=True, blank=True)
     qualification = models.TextField(null=True, blank=True)
     experience_years = models.PositiveSmallIntegerField(default=5)
+    specializations = models.CharField(max_length=255, null=True, blank=True)
     rating_average = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     reviews_count = models.PositiveIntegerField(default=0)
+    
+    # Address and Location
+    address = models.TextField(null=True, blank=True)
+    home_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
+    home_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
     
     # Coordinates & Service Radius for dispatch
     current_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
     current_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    location_updated_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of latest device GPS heartbeat")
+    service_radius_km = models.DecimalField(max_digits=5, decimal_places=2, default=15.0)
     location_updated_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of latest device GPS heartbeat")
     service_radius_km = models.DecimalField(max_digits=5, decimal_places=2, default=15.0)
     
